@@ -24,7 +24,7 @@ const defaultFields: Record<ObjectType, { key: string; value: string }[]> = {
   ]
 };
 
-const SalesforceManager: React.FC = () => {
+const Generator: React.FC = () => {
   const [type, setType] = useState<ObjectType>('leads');
   const [data, setData] = useState<SalesforceObject[]>([]);
   const [formFields, setFormFields] = useState<{ key: string; value: string }[]>([]);
@@ -35,7 +35,7 @@ const SalesforceManager: React.FC = () => {
   const mandatoryKeys = defaultFields[type].map(field => field.key);
 
   const fetchData = async () => {
-    const res = await axios.get(`http://localhost:5000/api/salesforce/${type}`);
+    const res = await axios.get(`${process.env.REACT_APP_API}/${type}`);
     setData(res.data);
   };
 
@@ -43,7 +43,6 @@ const SalesforceManager: React.FC = () => {
     fetchData();
     setFormFields(defaultFields[type]);
   }, [type]);  
-  
 
   const handleAddField = () => {
     setFormFields([...formFields, { key: '', value: '' }]);
@@ -60,19 +59,19 @@ const SalesforceManager: React.FC = () => {
     formFields.forEach(({ key, value }) => {
       if (key) payload[key] = value;
     });
-    await axios.post(`http://localhost:5000/api/salesforce/${type}`, payload);
+    await axios.post(`${process.env.REACT_APP_API}/${type}`, payload);
     alert(`${type.substring(0, type.length - 1)} has been added !`);
     setFormFields(defaultFields[type]);
     fetchData();
   };
 
-  const handleDeleteField = async (id: string, field: string) => {
-    await axios.patch(`http://localhost:5000/api/salesforce/${type}/${id}/remove-field`, { field });
-    fetchData();
-  };
+  // const handleDeleteField = async (id: string, field: string) => {
+  //   await axios.patch(`${process.env.REACT_APP_API}/${type}/${id}/remove-field`, { field });
+  //   fetchData();
+  // };
 
   const handleDeleteObject = async (id: string) => {
-    await axios.delete(`http://localhost:5000/api/salesforce/${type}/${id}`);
+    await axios.delete(`${process.env.REACT_APP_API}/${type}/${id}`);
     alert(`${type.substring(0, type.length - 1)} has been deleted !`);
     setFormFields(defaultFields[type]);
     fetchData();
@@ -88,11 +87,15 @@ const SalesforceManager: React.FC = () => {
   };
   
   const handleUpdate = async () => {
-    await axios.put(`http://localhost:5000/api/salesforce/${type}/${editingId}`, editFields);
+    await axios.put(`${process.env.REACT_APP_API}/${type}/${editingId}`, editFields);
     alert(`${type.substring(0, type.length - 1)} has been updated !`);
     setEditingId(null);
     setEditFields({});
     fetchData();
+  };
+
+  const handleCancel = async () => {
+    setEditingId(null);    
   };
 
   const handleRemoveField = (index: number) => {
@@ -103,14 +106,15 @@ const SalesforceManager: React.FC = () => {
 
   return (
     <div>
-      <h2>Salesforce Test Data Manager</h2>
+      <h2>Test Data Generator</h2>
+      <span style={{fontWeight: 'bolder'}}>Select an Object{' '}</span>
       <select value={type} onChange={(e) => setType(e.target.value as ObjectType)}>
         <option value="leads">Leads</option>
         <option value="accounts">Accounts</option>
         <option value="opportunities">Opportunities</option>
       </select>
 
-      <h3>Add New {type}</h3>
+      <h3>{`Add New ${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
       {formFields.map((field, index) => (
         <div key={index}>
           <input
@@ -130,19 +134,21 @@ const SalesforceManager: React.FC = () => {
         </div>
       ))}
 
-      <button onClick={handleAddField}>Add Field</button>
-      <button onClick={handleAddObject}>Submit</button>
+      <h3>
+        <button onClick={handleAddField}>Add Field</button>
+        <button onClick={handleAddObject}>Submit</button>
+      </h3>
 
-      <h3>{type} List</h3>
-      <ul>
+      <h3>{`${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
+      <div>
         {data.map((item) => (
-          <li key={item.id}>
-            {/* <strong>ID:</strong> {item.id} */}
-            <ul>
+          <div key={item.id} className='card'>
+            <strong>Id:{' '}</strong>{item.id}
+            <div>
               {Object.entries(item).map(([key, value]) =>
                 key !== 'id' ? (
-                  <li key={key}>
-                    <strong>{key}:</strong>
+                  <div key={key}>
+                    <strong>{key}:{' '}</strong>
                     {editingId === item.id ? (
                       <input
                         value={editFields[key] || ''}
@@ -151,24 +157,27 @@ const SalesforceManager: React.FC = () => {
                     ) : (
                       value
                     )}
-                    {editingId === item.id && (
+                    {/* {editingId === item.id && (
                       <button onClick={() => handleDeleteField(item.id, key)}>Delete Field</button>
-                    )}
-                  </li>
+                    )} */}
+                  </div>
                 ) : null
               )}
-              {editingId === item.id ? (
-                  <button onClick={handleUpdate}>Save</button>
-                ) : (
+              {editingId === item.id ? (<>
+                  <button onClick={handleUpdate}>Update</button>
+                  <button onClick={handleCancel}>Cancel</button>
+                  </>
+                ) : ( <>
                   <button onClick={() => startEditing(item)}>Edit</button>
+                  <button onClick={() => handleDeleteObject(item.id)}>Delete</button>
+                  </>
                 )}
-            </ul>
-            <button onClick={() => handleDeleteObject(item.id)}>Delete Object</button>
-          </li>
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 };
 
-export default SalesforceManager;
+export default Generator;

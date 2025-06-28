@@ -1,10 +1,11 @@
 import React from 'react';
-import SalesforceManager from './frontend/SalesforceManager';
+import Generator from './frontend/Generator';
+import './App.css';
 
 const App: React.FC = () => {
   return (
-    <div>
-      <SalesforceManager />
+    <div className='app'>
+      <Generator />
     </div>
   );
 };

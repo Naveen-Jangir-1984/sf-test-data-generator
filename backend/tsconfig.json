@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES6",                     // Output JavaScript version
+    "module": "commonjs",               // Module system for Node.js
+    "rootDir": "./",                    // Source files location
+    "outDir": "./dist",                 // Compiled files location
+    "esModuleInterop": true,            // Compatibility with ES modules
+    "strict": true                      // Enables strict type checking
+  }
+}

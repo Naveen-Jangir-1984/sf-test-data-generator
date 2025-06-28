@@ -9,6 +9,22 @@ const URL = process.env.REACT_APP_URL || '';
 const USERNAME = process.env.REACT_APP_USERNAME || '';
 const PASSWORD = `${process.env.REACT_APP_PASSWORD}${process.env.REACT_APP_TOKEN}` || '';
 
+const defaultFields: Record<string, Record<string, any>> = {
+  leads: {
+    LastName: '',
+    Company: '',
+    Status: ''
+  },
+  accounts: {
+    Name: ''
+  },
+  opportunities: {
+    Name: '',
+    StageName: '',
+    CloseDate: new Date().toISOString().split('T')[0] // today's date
+  }
+};
+
 const router = Router();
 const filePath = path.join(__dirname, '../data/salesforce.json');
 

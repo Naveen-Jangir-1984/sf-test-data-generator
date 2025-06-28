@@ -8,6 +8,22 @@ interface SalesforceObject {
   [key: string]: any;
 }
 
+const defaultFields: Record<ObjectType, { key: string; value: string }[]> = {
+  leads: [
+    { key: 'LastName', value: 'Default LastName' },
+    { key: 'Company', value: 'Default Company' },
+    { key: 'Status', value: 'Open - Not Contacted' }
+  ],
+  accounts: [
+    { key: 'Name', value: 'Default Account Name' }
+  ],
+  opportunities: [
+    { key: 'Name', value: 'Default Opportunity' },
+    { key: 'StageName', value: 'Prospecting' },
+    { key: 'CloseDate', value: new Date().toISOString().split('T')[0] }
+  ]
+};
+
 const SalesforceManager: React.FC = () => {
   const [type, setType] = useState<ObjectType>('leads');
   const [data, setData] = useState<SalesforceObject[]>([]);
@@ -16,6 +32,8 @@ const SalesforceManager: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState<{ [key: string]: string }>({});
 
+  const mandatoryKeys = defaultFields[type].map(field => field.key);
+
   const fetchData = async () => {
     const res = await axios.get(`http://localhost:5000/api/salesforce/${type}`);
     setData(res.data);
@@ -23,7 +41,9 @@ const SalesforceManager: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [type]);
+    setFormFields(defaultFields[type]);
+  }, [type]);  
+  
 
   const handleAddField = () => {
     setFormFields([...formFields, { key: '', value: '' }]);
@@ -41,9 +61,9 @@ const SalesforceManager: React.FC = () => {
       if (key) payload[key] = value;
     });
     await axios.post(`http://localhost:5000/api/salesforce/${type}`, payload);
-    setFormFields([]);
-    fetchData();
     alert(`${type.substring(0, type.length - 1)} has been added !`);
+    setFormFields(defaultFields[type]);
+    fetchData();
   };
 
   const handleDeleteField = async (id: string, field: string) => {
@@ -53,8 +73,9 @@ const SalesforceManager: React.FC = () => {
 
   const handleDeleteObject = async (id: string) => {
     await axios.delete(`http://localhost:5000/api/salesforce/${type}/${id}`);
-    fetchData();
     alert(`${type.substring(0, type.length - 1)} has been deleted !`);
+    setFormFields(defaultFields[type]);
+    fetchData();
   };
 
   const startEditing = (item: SalesforceObject) => {
@@ -68,10 +89,16 @@ const SalesforceManager: React.FC = () => {
   
   const handleUpdate = async () => {
     await axios.put(`http://localhost:5000/api/salesforce/${type}/${editingId}`, editFields);
+    alert(`${type.substring(0, type.length - 1)} has been updated !`);
     setEditingId(null);
     setEditFields({});
     fetchData();
-    alert(`${type.substring(0, type.length - 1)} has been updated !`);
+  };
+
+  const handleRemoveField = (index: number) => {
+    const updated = [...formFields];
+    updated.splice(index, 1);
+    setFormFields(updated);
   };  
 
   return (
@@ -90,14 +117,19 @@ const SalesforceManager: React.FC = () => {
             placeholder="Field name"
             value={field.key}
             onChange={(e) => handleFieldChange(index, e.target.value, field.value)}
+            disabled={mandatoryKeys.includes(field.key)} // prevent editing mandatory keys
           />
           <input
             placeholder="Field value"
             value={field.value}
             onChange={(e) => handleFieldChange(index, field.key, e.target.value)}
           />
+          {!mandatoryKeys.includes(field.key) && (
+            <button onClick={() => handleRemoveField(index)}>Remove</button>
+          )}
         </div>
       ))}
+
       <button onClick={handleAddField}>Add Field</button>
       <button onClick={handleAddObject}>Submit</button>
 

@@ -32,6 +32,8 @@ const Generator: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState<{ [key: string]: string }>({});
 
+  const [loading, setLoading] = useState(false);
+
   const mandatoryKeys = defaultFields[type].map(field => field.key);
 
   const fetchData = async () => {
@@ -40,8 +42,13 @@ const Generator: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
-    setFormFields(defaultFields[type]);
+    setLoading(true);
+    try {
+      fetchData();
+      setFormFields(defaultFields[type]);
+    } finally {
+      setLoading(false);
+    }
   }, [type]);  
 
   const handleAddField = () => {
@@ -55,14 +62,19 @@ const Generator: React.FC = () => {
   };
 
   const handleAddObject = async () => {
-    const payload: any = {};
-    formFields.forEach(({ key, value }) => {
-      if (key) payload[key] = value;
-    });
-    await axios.post(`${process.env.REACT_APP_API}/${type}`, payload);
-    alert(`${type.substring(0, type.length - 1)} has been added !`);
-    setFormFields(defaultFields[type]);
-    fetchData();
+    setLoading(true);
+    try {
+      const payload: any = {};
+      formFields.forEach(({ key, value }) => {
+        if (key) payload[key] = value;
+      });
+      await axios.post(`${process.env.REACT_APP_API}/${type}`, payload);
+      // alert(`${type.substring(0, type.length - 1)} has been added !`);
+      setFormFields(defaultFields[type]);
+      fetchData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   // const handleDeleteField = async (id: string, field: string) => {
@@ -71,10 +83,15 @@ const Generator: React.FC = () => {
   // };
 
   const handleDeleteObject = async (id: string) => {
-    await axios.delete(`${process.env.REACT_APP_API}/${type}/${id}`);
-    alert(`${type.substring(0, type.length - 1)} has been deleted !`);
-    setFormFields(defaultFields[type]);
-    fetchData();
+    setLoading(true);
+    try {
+      await axios.delete(`${process.env.REACT_APP_API}/${type}/${id}`);
+      // alert(`${type.substring(0, type.length - 1)} has been deleted !`);
+      setFormFields(defaultFields[type]);
+      fetchData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startEditing = (item: SalesforceObject) => {
@@ -87,11 +104,16 @@ const Generator: React.FC = () => {
   };
   
   const handleUpdate = async () => {
-    await axios.put(`${process.env.REACT_APP_API}/${type}/${editingId}`, editFields);
-    alert(`${type.substring(0, type.length - 1)} has been updated !`);
-    setEditingId(null);
-    setEditFields({});
-    fetchData();
+    setLoading(true);
+    try {
+      await axios.put(`${process.env.REACT_APP_API}/${type}/${editingId}`, editFields);
+      // alert(`${type.substring(0, type.length - 1)} has been updated !`);
+      setEditingId(null);
+      setEditFields({});
+      fetchData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = async () => {
@@ -105,18 +127,20 @@ const Generator: React.FC = () => {
   };  
 
   return (
-    <div>
-      <h2>Test Data Generator</h2>
-      <span style={{fontWeight: 'bolder'}}>Select an Object{' '}</span>
-      <select value={type} onChange={(e) => setType(e.target.value as ObjectType)}>
-        <option value="leads">Leads</option>
-        <option value="accounts">Accounts</option>
-        <option value="opportunities">Opportunities</option>
-      </select>
+    <div className='generator'>
+      <h2 style={{margin: '50px 0'}}>Test Data Generator</h2>
+      <div className='objects'>
+        <div style={{fontWeight: 'bolder'}}>Select an Object{' '}</div>
+        <select value={type} onChange={(e) => setType(e.target.value as ObjectType)}>
+          <option value="leads">Leads</option>
+          <option value="accounts">Accounts</option>
+          <option value="opportunities">Opportunities</option>
+        </select>
+      </div>
 
       <h3>{`Add New ${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
       {formFields.map((field, index) => (
-        <div key={index}>
+        <div key={index} className='fields'>
           <input
             placeholder="Field name"
             value={field.key}
@@ -134,17 +158,17 @@ const Generator: React.FC = () => {
         </div>
       ))}
 
-      <h3>
-        <button onClick={handleAddField}>Add Field</button>
+      <div className='actions'>
+        <button onClick={handleAddField}>+ Field</button>
         <button onClick={handleAddObject}>Submit</button>
-      </h3>
+      </div>
 
       <h3>{`${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
-      <div>
+      <div className='cards'>
         {data.map((item) => (
           <div key={item.id} className='card'>
-            <strong>Id:{' '}</strong>{item.id}
             <div>
+              <div><strong>Id: </strong>{item.id}</div>
               {Object.entries(item).map(([key, value]) =>
                 key !== 'id' ? (
                   <div key={key}>
@@ -163,19 +187,26 @@ const Generator: React.FC = () => {
                   </div>
                 ) : null
               )}
-              {editingId === item.id ? (<>
+              {editingId === item.id ? (<div className='actions'>
                   <button onClick={handleUpdate}>Update</button>
                   <button onClick={handleCancel}>Cancel</button>
-                  </>
-                ) : ( <>
+                  </div>
+                ) : ( <div className='actions'>
                   <button onClick={() => startEditing(item)}>Edit</button>
                   <button onClick={() => handleDeleteObject(item.id)}>Delete</button>
-                  </>
+                  </div>
                 )}
             </div>
           </div>
         ))}
       </div>
+
+      {loading && (
+      <div className="loading-overlay">
+        <div className="spinner" />
+        <p>Processing...</p>
+      </div>
+      )}
     </div>
   );
 };

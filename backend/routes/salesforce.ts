@@ -38,9 +38,48 @@ const sfObjectMap: Record<string, string> = {
 };
 
 // Get all objects of a type
-router.get('/:type', (req, res) => {
-  const data = readData();
-  res.json(data[req.params.type] || []);
+router.get('/:type', async (req, res) => {
+  const conn = new jsforce.Connection({
+    loginUrl: URL
+  });
+  try {
+    await conn.login(USERNAME!, PASSWORD!);
+  
+    // const objectType = req.params.type;
+    // const sfObjectName = sfObjectMap[objectType];
+    // const records = await conn.sobject(sfObjectName).find({}, '*').limit(100).execute();
+    // res.json(records);
+    
+    const data = readData();
+    res.json(data[req.params.type] || []);
+
+  } catch (error) {
+    console.error('Salesforce error:', error);
+    res.status(500).send('Failed to create Salesforce object');
+  }
+});
+
+// Get full object record from Salesforce
+router.get('/:type/:Id/full', async (req, res) => {
+  const conn = new jsforce.Connection({ loginUrl: URL });
+
+  try {
+    await conn.login(USERNAME, PASSWORD);
+
+    const objectType = req.params.type;
+    const recordId = req.params.Id;
+
+    const sfObjectName = sfObjectMap[objectType];
+    if (!sfObjectName) return res.status(400).send('Invalid object type');
+
+    // Fetch full object
+    const fullObject = await conn.sobject(sfObjectName).retrieve(recordId);
+    res.json(fullObject);
+
+  } catch (error) {
+    console.error('Error fetching full object:', error);
+    res.status(500).send('Failed to fetch full object');
+  }
 });
 
 // Add new object with dynamic fields
@@ -58,15 +97,19 @@ router.post('/:type', async (req, res) => {
     if (!sfObjectName) return res.status(400).send('Invalid object type');
 
     const result: any = await conn.sobject(sfObjectName).create(payload);
+    if (!result.success) {
+      return res.status(500).send('Failed to update Salesforce object');
+    }
 
     // Save locally as well
     const data = readData();
-    const newItem = { id: result.id, ...payload };
+    const newItem = { Id: result.id, ...payload };
     data[objectType] = data[objectType] || [];
     data[objectType].push(newItem);
     writeData(data);
+    
+    res.status(201).json({ Id: result.id, ...req.body });
 
-    res.status(201).json(newItem);
   } catch (error) {
     console.error('Salesforce error:', error);
     res.status(500).send('Failed to create Salesforce object');
@@ -74,7 +117,7 @@ router.post('/:type', async (req, res) => {
 });
 
 // Update object
-router.put('/:type/:id', async (req, res) => {
+router.put('/:type/:Id', async (req, res) => {
   const conn = new jsforce.Connection({
     loginUrl: URL
   });
@@ -82,7 +125,7 @@ router.put('/:type/:id', async (req, res) => {
     await conn.login(USERNAME, PASSWORD);
 
     const objectType = req.params.type;
-    const recordId = req.params.id;
+    const recordId = req.params.Id;
     const { Id, id, ...updateFields } = req.body;
 
     const sfObjectName = sfObjectMap[objectType];
@@ -97,13 +140,20 @@ router.put('/:type/:id', async (req, res) => {
     // Update in local JSON
     const data = readData();
     const items = data[objectType] || [];
-    const index = items.findIndex((item: any) => item.id === recordId);
+    const index = items.findIndex((item: any) => item.Id === recordId);
     if (index === -1) return res.status(404).send('Object not found locally');
 
-    items[index] = { ...items[index], ...updateFields };
+    for (const key in updateFields) {
+      if (updateFields[key] === null || updateFields[key] === '') {
+        delete items[index][key]; // remove the key from local copy
+      } else {
+        items[index][key] = updateFields[key]; // update normally
+      }
+    }    
     writeData(data);
+    
+    res.json({ Id: req.params.Id, ...updateFields });
 
-    res.json(items[index]);
   } catch (error) {
     console.error('Salesforce update error:', error);
     res.status(500).send('Error updating Salesforce object');
@@ -111,7 +161,7 @@ router.put('/:type/:id', async (req, res) => {
 });
 
 // Delete object
-router.delete('/:type/:id', async (req, res) => {
+router.delete('/:type/:Id', async (req, res) => {
   const conn = new jsforce.Connection({
     loginUrl: URL
   });
@@ -119,7 +169,7 @@ router.delete('/:type/:id', async (req, res) => {
     await conn.login(USERNAME, PASSWORD);
 
     const objectType = req.params.type;
-    const recordId = req.params.id;
+    const recordId = req.params.Id;
 
     const sfObjectName = sfObjectMap[objectType];
     if (!sfObjectName) return res.status(400).send('Invalid object type');
@@ -132,10 +182,11 @@ router.delete('/:type/:id', async (req, res) => {
 
     // Delete from local JSON
     const data = readData();
-    data[objectType] = (data[objectType] || []).filter((item: any) => item.id !== recordId);
+    data[objectType] = (data[objectType] || []).filter((item: any) => item.Id !== recordId);
     writeData(data);
 
     res.status(204).send();
+
   } catch (error) {
     console.error('Salesforce delete error:', error);
     res.status(500).send('Error deleting Salesforce object');
@@ -143,15 +194,26 @@ router.delete('/:type/:id', async (req, res) => {
 });
 
 // Delete a field from an object
-router.patch('/:type/:id/remove-field', (req, res) => {
-  const { field } = req.body;
-  const data = readData();
-  const items = data[req.params.type] || [];
-  const index = items.findIndex((item: any) => item.id === req.params.id);
-  if (index === -1) return res.status(404).send('Not found');
-  delete items[index][field];
-  writeData(data);
-  res.json(items[index]);
+router.patch('/:type/:Id/remove-field', async (req, res) => {
+  const conn = new jsforce.Connection({
+    loginUrl: URL
+  });
+  try {
+    await conn.login(USERNAME, PASSWORD);
+
+    const objectType = req.params.type;
+    const recordId = req.params.Id;
+    const { field } = req.body;
+    const sfObjectName = sfObjectMap[objectType];
+
+    const record = await conn.sobject(sfObjectName).retrieve(req.params.Id);
+    delete record[field];
+    await conn.sobject(sfObjectName).update({ Id: req.params.Id, ...record });
+    res.json(record);
+  } catch (error) {
+    console.error('Salesforce delete error:', error);
+    res.status(500).send('Error deleting Salesforce object');
+  }
 });
 
 export default router;

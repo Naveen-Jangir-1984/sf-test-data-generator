@@ -1,43 +1,5 @@
 {
-  "leads": [
-    {
-      "id": "00QdN000008DotdUAC",
-      "LastName": "Default LastName 1",
-      "Company": "Default Company 1",
-      "Status": "Open - Not Contacted"
-    },
-    {
-      "id": "00QdN000008DxH6UAK",
-      "LastName": "Default LastName 2",
-      "Company": "Default Company 2",
-      "Status": "Open - Not Contacted"
-    },
-    {
-      "id": "00QdN000008E1CaUAK",
-      "LastName": "Default LastName 3",
-      "Company": "Default Company 3",
-      "Status": "Open - Not Contacted"
-    },
-    {
-      "id": "00QdN000008EBa9UAG",
-      "LastName": "Default LastName 4",
-      "Company": "Default Company 4",
-      "Status": "Open - Not Contacted"
-    }
-  ],
-  "accounts": [
-    {
-      "id": "001dN00000bn6J9QAI",
-      "Name": "Default Account Name 1"
-    }
-  ],
-  "opportunities": [
-    {
-      "id": "006dN000007aTViQAM",
-      "Name": "Default Opportunity 1",
-      "StageName": "Prospecting",
-      "CloseDate": "2025-06-29",
-      "AccountId": "001dN00000bn6J9QAI"
-    }
-  ]
+  "leads": [],
+  "accounts": [],
+  "opportunities": []
 }

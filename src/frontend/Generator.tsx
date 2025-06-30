@@ -4,7 +4,7 @@ import axios from 'axios';
 type ObjectType = 'leads' | 'accounts' | 'opportunities';
 
 interface SalesforceObject {
-  id: string;
+  Id: string;
   [key: string]: any;
 }
 
@@ -32,6 +32,9 @@ const Generator: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState<{ [key: string]: string }>({});
 
+  const [editExtraFields, setEditExtraFields] = useState<{ [id: string]: { key: string; value: string }[] }>({});
+  const [viewingItem, setViewingItem] = useState<SalesforceObject | null>(null);
+
   const [loading, setLoading] = useState(false);
 
   const mandatoryKeys = defaultFields[type].map(field => field.key);
@@ -49,7 +52,7 @@ const Generator: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [type]);  
+  }, [type]);
 
   const handleAddField = () => {
     setFormFields([...formFields, { key: '', value: '' }]);
@@ -76,16 +79,29 @@ const Generator: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  const handleAddEditField = (id: string) => {
+    setEditExtraFields(prev => ({
+      ...prev,
+      [id]: [...(prev[id] || []), { key: '', value: '' }]
+    }));
+  };
+  
+  const handleEditExtraFieldChange = (id: string, index: number, key: string, value: string) => {
+    const updated = [...(editExtraFields[id] || [])];
+    updated[index] = { key, value };
+    setEditExtraFields(prev => ({ ...prev, [id]: updated }));
+  };  
 
-  // const handleDeleteField = async (id: string, field: string) => {
-  //   await axios.patch(`${process.env.REACT_APP_API}/${type}/${id}/remove-field`, { field });
+  // const handleDeleteField = async (Id: string, field: string) => {
+  //   await axios.patch(`${process.env.REACT_APP_API}/${type}/${Id}/remove-field`, { field });
   //   fetchData();
   // };
 
-  const handleDeleteObject = async (id: string) => {
+  const handleDeleteObject = async (Id: string) => {
     setLoading(true);
     try {
-      await axios.delete(`${process.env.REACT_APP_API}/${type}/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API}/${type}/${Id}`);
       // alert(`${type.substring(0, type.length - 1)} has been deleted !`);
       setFormFields(defaultFields[type]);
       fetchData();
@@ -95,9 +111,13 @@ const Generator: React.FC = () => {
   };
 
   const startEditing = (item: SalesforceObject) => {
-    setEditingId(item.id);
+    setEditingId(item.Id);
     setEditFields({ ...item });
-  };
+  
+    if (!editExtraFields[item.Id]) {
+      setEditExtraFields(prev => ({ ...prev, [item.Id]: [] }));
+    }
+  };  
 
   const handleEditChange = (key: string, value: string) => {
     setEditFields({ ...editFields, [key]: value });
@@ -106,19 +126,50 @@ const Generator: React.FC = () => {
   const handleUpdate = async () => {
     setLoading(true);
     try {
-      await axios.put(`${process.env.REACT_APP_API}/${type}/${editingId}`, editFields);
-      // alert(`${type.substring(0, type.length - 1)} has been updated !`);
+      const extra = editExtraFields[editingId || ''] || [];
+      const payload: any = { ...editFields };
+  
+      // Add extra fields
+      extra.forEach(({ key, value }) => {
+        if (key) payload[key] = value;
+      });
+  
+      // Find original object
+      const original = data.find(obj => obj.Id === editingId);
+      if (original) {
+        Object.keys(original).forEach((key) => {
+          if (key !== 'Id' && !(key in payload)) {
+            // Field was removed — set to null (or '' if preferred)
+            payload[key] = null; // or '' if backend expects empty string
+          }
+        });
+      }
+  
+      await axios.put(`${process.env.REACT_APP_API}/${type}/${editingId}`, payload);
+  
       setEditingId(null);
       setEditFields({});
+      setEditExtraFields(prev => {
+        const copy = { ...prev };
+        delete copy[editingId || ''];
+        return copy;
+      });
       fetchData();
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   const handleCancel = async () => {
-    setEditingId(null);    
+    setEditingId(null);
+    setEditFields({});
+    setEditExtraFields(prev => {
+      const copy = { ...prev };
+      if (editingId) delete copy[editingId];
+      return copy;
+    });
   };
+  
 
   const handleRemoveField = (index: number) => {
     const updated = [...formFields];
@@ -126,80 +177,156 @@ const Generator: React.FC = () => {
     setFormFields(updated);
   };  
 
+  const handleRemoveEditExtraField = (id: string, index: number) => {
+    const updated = [...(editExtraFields[id] || [])];
+    updated.splice(index, 1);
+    setEditExtraFields(prev => ({ ...prev, [id]: updated }));
+  };  
+
+  const handleViewObject = async (id: string) => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${process.env.REACT_APP_API}/${type}/${id}/full`);
+      setViewingItem(res.data);
+    } catch (err) {
+      alert('Failed to fetch full object');
+    } finally {
+      setLoading(false);
+    }
+  };  
+
   return (
     <div className='generator'>
-      <h2 style={{margin: '50px 0'}}>Test Data Generator</h2>
-      <div className='objects'>
-        <div style={{fontWeight: 'bolder'}}>Select an Object{' '}</div>
-        <select value={type} onChange={(e) => setType(e.target.value as ObjectType)}>
-          <option value="leads">Leads</option>
-          <option value="accounts">Accounts</option>
-          <option value="opportunities">Opportunities</option>
-        </select>
-      </div>
-
-      <h3>{`Add New ${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
-      {formFields.map((field, index) => (
-        <div key={index} className='fields'>
-          <input
-            placeholder="Field name"
-            value={field.key}
-            onChange={(e) => handleFieldChange(index, e.target.value, field.value)}
-            disabled={mandatoryKeys.includes(field.key)} // prevent editing mandatory keys
-          />
-          <input
-            placeholder="Field value"
-            value={field.value}
-            onChange={(e) => handleFieldChange(index, field.key, e.target.value)}
-          />
-          {!mandatoryKeys.includes(field.key) && (
-            <button onClick={() => handleRemoveField(index)}>Remove</button>
-          )}
+      <div className='inputs'>
+        <h2>Test Data Generator</h2>
+        <div className='objects'>
+          <div style={{fontWeight: 'bolder'}}>Select an Object{' '}</div>
+          <select value={type} onChange={(e) => setType(e.target.value as ObjectType)}>
+            <option value="leads">Leads</option>
+            <option value="accounts">Accounts</option>
+            <option value="opportunities">Opportunities</option>
+          </select>
         </div>
-      ))}
 
-      <div className='actions'>
-        <button onClick={handleAddField}>+ Field</button>
-        <button onClick={handleAddObject}>Submit</button>
-      </div>
-
-      <h3>{`${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
-      <div className='cards'>
-        {data.map((item) => (
-          <div key={item.id} className='card'>
-            <div>
-              <div><strong>Id: </strong>{item.id}</div>
-              {Object.entries(item).map(([key, value]) =>
-                key !== 'id' ? (
-                  <div key={key}>
-                    <strong>{key}:{' '}</strong>
-                    {editingId === item.id ? (
-                      <input
-                        value={editFields[key] || ''}
-                        onChange={(e) => handleEditChange(key, e.target.value)}
-                      />
-                    ) : (
-                      value
-                    )}
-                    {/* {editingId === item.id && (
-                      <button onClick={() => handleDeleteField(item.id, key)}>Delete Field</button>
-                    )} */}
-                  </div>
-                ) : null
-              )}
-              {editingId === item.id ? (<div className='actions'>
-                  <button onClick={handleUpdate}>Update</button>
-                  <button onClick={handleCancel}>Cancel</button>
-                  </div>
-                ) : ( <div className='actions'>
-                  <button onClick={() => startEditing(item)}>Edit</button>
-                  <button onClick={() => handleDeleteObject(item.id)}>Delete</button>
-                  </div>
-                )}
-            </div>
+        <h3>{`Add New ${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h3>
+        {formFields.map((field, index) => (
+          <div key={index} className='fields'>
+            <input
+              placeholder="Field name"
+              value={field.key}
+              onChange={(e) => handleFieldChange(index, e.target.value, field.value)}
+              disabled={mandatoryKeys.includes(field.key)} // prevent editing mandatory keys
+            />
+            <input
+              placeholder="Field value"
+              value={field.value}
+              onChange={(e) => handleFieldChange(index, field.key, e.target.value)}
+            />
+            {!mandatoryKeys.includes(field.key) && (
+              <button onClick={() => handleRemoveField(index)}>Remove</button>
+            )}
           </div>
         ))}
+
+        <div className='actions'>
+          <button onClick={handleAddField}>+ Field</button>
+          <button onClick={handleAddObject}>Submit</button>
+        </div>
       </div>
+
+      <div className='list'>
+        <h2>{`${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h2>
+        <div className='cards'>
+          {data.map((item) => (
+            <div key={item.Id} className='card'>
+              <>
+                {editingId === item.Id
+                  ? Object.entries(editFields).map(([key, value]) => (
+                      <div key={key} className='attributes'>
+                        <span style={{ fontSize: '12px', fontWeight: 'bolder' }}>{key}</span>
+                        <input
+                          disabled={key === 'Id'}
+                          value={value}
+                          onChange={(e) => handleEditChange(key, e.target.value)}
+                        />
+                        {!mandatoryKeys.includes(key) && key !== 'Id' && (
+                          <button
+                            onClick={() => {
+                              const updated = { ...editFields };
+                              delete updated[key];
+                              setEditFields(updated);
+                            }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  : Object.entries(item).map(([key, value]) => (
+                      <div key={key} className='attributes'>
+                        <span style={{ fontSize: '12px', fontWeight: 'bolder' }}>{key}</span>
+                        <input disabled value={value || ''} />
+                      </div>
+                    ))}
+                {editingId === item.Id && (editExtraFields[item.Id] || []).map((field, idx) => (
+                  <div key={`extra-${idx}`} className='attributes'>
+                    <input
+                      placeholder="Field name"
+                      value={field.key}
+                      onChange={(e) =>
+                        handleEditExtraFieldChange(item.Id, idx, e.target.value, field.value)
+                      }
+                    />
+                    <input
+                      placeholder="Field value"
+                      value={field.value}
+                      onChange={(e) =>
+                        handleEditExtraFieldChange(item.Id, idx, field.key, e.target.value)
+                      }
+                    />
+                    <button onClick={() => handleRemoveEditExtraField(item.Id, idx)}>Remove</button>
+                  </div>
+                ))}
+                {editingId === item.Id ? (<div className='actions'>
+                    <button onClick={() => handleAddEditField(item.Id)}>+ Field</button>
+                    <button onClick={handleUpdate}>Update</button>
+                    <button onClick={handleCancel}>Cancel</button>
+                    </div>
+                  ) : ( <div className='actions'>
+                    <button onClick={() => handleViewObject(item.Id)}>View</button>
+                    <button onClick={() => startEditing(item)}>Edit</button>
+                    <button onClick={() => handleDeleteObject(item.Id)}>Delete</button>
+                    </div>
+                  )}
+              </>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {viewingItem && (
+        <div className="modal">
+          <div className="modal-content">
+            {Object.entries(viewingItem).map(([key, value]) => (
+              <div key={key} className='attributes'>
+                <strong>{key}</strong>
+                {key === 'attributes' && typeof value === 'object' && value !== null ? (
+                  <div style={{ marginLeft: '10px' }}>
+                    {Object.entries(value).map(([subKey, subVal]) => (
+                      <div key={subKey}>
+                        <em>{subKey}</em>: {String(subVal)}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span> {String(value)}</span>
+                )}
+              </div>
+            ))}
+            <button onClick={() => setViewingItem(null)}>Close</button>
+          </div>
+        </div>
+      )}
 
       {loading && (
       <div className="loading-overlay">

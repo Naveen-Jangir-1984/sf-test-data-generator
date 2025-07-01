@@ -76,7 +76,6 @@ const Generator: React.FC = () => {
       setFormFields(defaultFields[type]);
       fetchData();
     } finally {
-      setLoading(false);
     }
   };
   
@@ -106,7 +105,6 @@ const Generator: React.FC = () => {
       setFormFields(defaultFields[type]);
       fetchData();
     } finally {
-      setLoading(false);
     }
   };
 
@@ -156,7 +154,6 @@ const Generator: React.FC = () => {
       });
       fetchData();
     } finally {
-      setLoading(false);
     }
   };  
 
@@ -332,7 +329,7 @@ const Generator: React.FC = () => {
       {loading && (
       <div className="loading-overlay">
         <div className="spinner" />
-        <p>Processing...</p>
+        <p>Please wait...</p>
       </div>
       )}
     </div>

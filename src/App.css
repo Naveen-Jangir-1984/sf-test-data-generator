@@ -25,7 +25,7 @@
   justify-content: flex-start;
   align-items: center;
   row-gap: 10px;
-  width: 45%;
+  width: 43%;
   height: 100%;
 }
 
@@ -47,7 +47,13 @@
   flex-direction: column;
   justify-content: space-between;
   width: 100%;
-  box-sizing: border-box;
+  height: 80%;
+  overflow-y: auto;
+  box-sizing: border-box;  
+
+  /* Hide by default */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
 }
 
 .card {
@@ -88,6 +94,10 @@
   max-height: 80vh;
   overflow-y: auto;
   width: 400px;
+
+  /* Hide by default */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
 }
 
 .loading-overlay {

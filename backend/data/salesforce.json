@@ -1,5 +1,30 @@
 {
-  "leads": [],
+  "leads": [
+    {
+      "Id": "00QdN000008GFhdUAG",
+      "LastName": "Default LastName",
+      "Company": "Default Company",
+      "Status": "Open - Not Contacted"
+    },
+    {
+      "Id": "00QdN000008GFxlUAG",
+      "LastName": "Default LastName 1",
+      "Company": "Default Company 1",
+      "Status": "Open - Not Contacted"
+    },
+    {
+      "Id": "00QdN000008GFzNUAW",
+      "LastName": "Default LastName 2",
+      "Company": "Default Company 2",
+      "Status": "Open - Not Contacted"
+    },
+    {
+      "Id": "00QdN000008GG2bUAG",
+      "LastName": "Default LastName 3",
+      "Company": "Default Company 3",
+      "Status": "Open - Not Contacted 3"
+    }
+  ],
   "accounts": [],
   "opportunities": []
 }

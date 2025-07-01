@@ -42,6 +42,7 @@ const Generator: React.FC = () => {
   const fetchData = async () => {
     const res = await axios.get(`${process.env.REACT_APP_API}/${type}`);
     setData(res.data);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -50,7 +51,6 @@ const Generator: React.FC = () => {
       fetchData();
       setFormFields(defaultFields[type]);
     } finally {
-      setLoading(false);
     }
   }, [type]);
 
@@ -168,8 +168,7 @@ const Generator: React.FC = () => {
       if (editingId) delete copy[editingId];
       return copy;
     });
-  };
-  
+  };  
 
   const handleRemoveField = (index: number) => {
     const updated = [...formFields];
@@ -236,6 +235,7 @@ const Generator: React.FC = () => {
 
       <div className='list'>
         <h2>{`${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h2>
+        {loading ? <div>{`Fetching ${type}...`}</div> : data.length ?
         <div className='cards'>
           {data.map((item) => (
             <div key={item.Id} className='card'>
@@ -301,7 +301,8 @@ const Generator: React.FC = () => {
               </>
             </div>
           ))}
-        </div>
+        </div> : <div>{`No ${type} available !`}</div>
+        }
       </div>
 
       {viewingItem && (

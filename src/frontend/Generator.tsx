@@ -12,21 +12,26 @@ const defaultFields: Record<ObjectType, { key: string; value: string }[]> = {
   leads: [
     { key: 'LastName', value: 'Default LastName' },
     { key: 'Company', value: 'Default Company' },
-    { key: 'Status', value: 'Open - Not Contacted' }
+    { key: 'Status', value: 'Open - Not Contacted' },
+    { key: 'OwnerId', value: '' },
   ],
   accounts: [
-    { key: 'Name', value: 'Default Account Name' }
+    { key: 'Name', value: 'Default Account Name' },
+    { key: 'OwnerId', value: '' },
   ],
   opportunities: [
     { key: 'Name', value: 'Default Opportunity' },
     { key: 'StageName', value: 'Prospecting' },
-    { key: 'CloseDate', value: new Date().toISOString().split('T')[0] }
+    { key: 'CloseDate', value: new Date().toISOString().split('T')[0] },
+    { key: 'OwnerId', value: '' },
   ]
 };
 
 const Generator: React.FC = () => {
   const [type, setType] = useState<ObjectType>('leads');
   const [data, setData] = useState<SalesforceObject[]>([]);
+  const [user, setUser] = useState<string>('');
+  const [users, setUsers] = useState<{ Id: string; Name: string }[]>([]);
   const [formFields, setFormFields] = useState<{ key: string; value: string }[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,9 +50,19 @@ const Generator: React.FC = () => {
     setLoading(false);
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get(`${process.env.REACT_APP_API}/users`);
+      setUsers(res.data);
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     try {
+      fetchUsers();
       fetchData();
       setFormFields(defaultFields[type]);
     } finally {
@@ -71,7 +86,7 @@ const Generator: React.FC = () => {
       formFields.forEach(({ key, value }) => {
         if (key) payload[key] = value;
       });
-      await axios.post(`${process.env.REACT_APP_API}/${type}`, payload);
+      await axios.post(`${process.env.REACT_APP_API}/${type}`, { ...payload, "OwnerId": user });
       // alert(`${type.substring(0, type.length - 1)} has been added !`);
       setFormFields(defaultFields[type]);
       fetchData();
@@ -196,7 +211,7 @@ const Generator: React.FC = () => {
       <div className='inputs'>
         <h2>Test Data Generator</h2>
         <div className='objects'>
-          <div style={{fontWeight: 'bolder'}}>Select an Object{' '}</div>
+          <div style={{fontWeight: 'bolder'}}>Select an Object</div>
           <select value={type} onChange={(e) => setType(e.target.value as ObjectType)}>
             <option value="leads">Leads</option>
             <option value="accounts">Accounts</option>
@@ -209,15 +224,22 @@ const Generator: React.FC = () => {
           <div key={index} className='fields'>
             <input
               placeholder="Field name"
-              value={field.key}
+              value={field.key === 'OwnerId' ? 'Owner' : field.key}
               onChange={(e) => handleFieldChange(index, e.target.value, field.value)}
               disabled={mandatoryKeys.includes(field.key)} // prevent editing mandatory keys
             />
-            <input
-              placeholder="Field value"
-              value={field.value}
-              onChange={(e) => handleFieldChange(index, field.key, e.target.value)}
-            />
+            {
+              field.key === 'OwnerId' ?
+              <select value={user} onChange={(e) => setUser(e.target.value)}>
+                <option value=''>-- Owner --</option>
+                { users.map(u => <option key={u.Id} value={u.Id}>{u.Name}</option>) }
+              </select> : 
+              <input
+                placeholder="Field value"
+                value={field.value}
+                onChange={(e) => handleFieldChange(index, field.key, e.target.value)}
+              />
+            }
             {!mandatoryKeys.includes(field.key) && (
               <button onClick={() => handleRemoveField(index)}>Remove</button>
             )}
@@ -240,12 +262,19 @@ const Generator: React.FC = () => {
                 {editingId === item.Id
                   ? Object.entries(editFields).map(([key, value]) => (
                       <div key={key} className='attributes'>
-                        <span style={{ fontSize: '12px', fontWeight: 'bolder' }}>{key}</span>
-                        <input
-                          disabled={key === 'Id'}
-                          value={value}
-                          onChange={(e) => handleEditChange(key, e.target.value)}
-                        />
+                        <span style={{ fontSize: 'small', fontWeight: 'bolder' }}>{key === 'OwnerId' ? 'Owner' : key}</span>
+                        {
+                          key === 'OwnerId' ?
+                          <select value={value} onChange={(e) => handleEditChange(key, e.target.value)}>
+                            <option value=''>-- Owner --</option>
+                            { users.map(u => <option key={u.Id} value={u.Id}>{u.Name}</option>) }
+                          </select> :
+                          <input
+                            disabled={key === 'Id'}
+                            value={value}
+                            onChange={(e) => handleEditChange(key, e.target.value)}
+                          />
+                        }
                         {!mandatoryKeys.includes(key) && key !== 'Id' && (
                           <button
                             onClick={() => {
@@ -261,29 +290,36 @@ const Generator: React.FC = () => {
                     ))
                   : Object.entries(item).map(([key, value]) => (
                       <div key={key} className='attributes'>
-                        <span style={{ fontSize: '12px', fontWeight: 'bolder' }}>{key}</span>
-                        <input disabled value={value || ''} />
+                        <span style={{ fontSize: 'small', fontWeight: 'bolder' }}>{key === 'OwnerId' ? 'Owner' : key}</span>
+                        {
+                          key === 'OwnerId' ?
+                          <select value={value || ''} disabled>
+                            <option value=''>-- Owner --</option>
+                            { users.map(u => <option key={u.Id} value={u.Id}>{u.Name}</option>) }
+                          </select> : 
+                          <input disabled value={value || ''} />
+                        }
                       </div>
                     ))}
-                {editingId === item.Id && (editExtraFields[item.Id] || []).map((field, idx) => (
-                  <div key={`extra-${idx}`} className='attributes'>
-                    <input
-                      placeholder="Field name"
-                      value={field.key}
-                      onChange={(e) =>
-                        handleEditExtraFieldChange(item.Id, idx, e.target.value, field.value)
-                      }
-                    />
-                    <input
-                      placeholder="Field value"
-                      value={field.value}
-                      onChange={(e) =>
-                        handleEditExtraFieldChange(item.Id, idx, field.key, e.target.value)
-                      }
-                    />
-                    <button onClick={() => handleRemoveEditExtraField(item.Id, idx)}>Remove</button>
-                  </div>
-                ))}
+                    {editingId === item.Id && (editExtraFields[item.Id] || []).map((field, idx) => (
+                      <div key={`extra-${idx}`} className='attributes'>
+                        <input
+                          placeholder="Field name"
+                          value={field.key}
+                          onChange={(e) =>
+                            handleEditExtraFieldChange(item.Id, idx, e.target.value, field.value)
+                          }
+                        />
+                        <input
+                          placeholder="Field value"
+                          value={field.value}
+                          onChange={(e) =>
+                            handleEditExtraFieldChange(item.Id, idx, field.key, e.target.value)
+                          }
+                        />
+                        <button onClick={() => handleRemoveEditExtraField(item.Id, idx)}>Remove</button>
+                      </div>
+                    ))}
                 {editingId === item.Id ? (<div className='actions'>
                     <button onClick={() => handleAddEditField(item.Id)}>+ Field</button>
                     <button onClick={handleUpdate}>Update</button>

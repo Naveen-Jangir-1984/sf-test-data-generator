@@ -37,25 +37,56 @@ const sfObjectMap: Record<string, string> = {
   opportunities: 'Opportunity'
 };
 
+// Get all users
+router.get('/users', async (req, res) => {
+  try {
+    const conn = new jsforce.Connection({
+      loginUrl: URL
+    });
+
+    await conn.login(USERNAME, PASSWORD);
+    
+    const users = await conn.query(
+      "SELECT Id, Name, Username FROM User WHERE IsActive = true ORDER BY Name"
+    );
+
+    res.json(users.records);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
 // Get all objects of a type
 router.get('/:type', async (req, res) => {
-  const conn = new jsforce.Connection({
-    loginUrl: URL
-  });
-  try {
-    await conn.login(USERNAME!, PASSWORD!);
-  
-    // const objectType = req.params.type;
-    // const sfObjectName = sfObjectMap[objectType];
-    // const records = await conn.sobject(sfObjectName).find({}, '*').limit(100).execute();
-    // res.json(records);
-    
-    const data = readData();
-    res.json(data[req.params.type] || []);
+  const conn = new jsforce.Connection({ loginUrl: URL });
+  const type = req.params.type;
 
+  try {
+    await conn.login(USERNAME, PASSWORD);
+
+    const sfObjectName = sfObjectMap[type];
+    if (!sfObjectName) return res.status(400).send('Invalid object type');
+
+    // Fetch Salesforce records
+    const sfRecords = await conn.sobject(sfObjectName).find({}, 'Id').limit(200).execute();
+    const sfIdSet = new Set(sfRecords.map((record: any) => record.Id));
+
+    // Read local data
+    const allLocalData = readData();
+    const localRecords = allLocalData[type] || [];
+
+    // Keep only matching records
+    const matched = localRecords.filter((record: any) => sfIdSet.has(record.Id));
+
+    // Update JSON file
+    allLocalData[type] = matched;
+    writeData(allLocalData);
+
+    res.json(matched);
   } catch (error) {
     console.error('Salesforce error:', error);
-    res.status(500).send('Failed to create Salesforce object');
+    res.status(500).send('Failed to fetch/compare Salesforce objects');
   }
 });
 

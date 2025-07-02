@@ -37,20 +37,30 @@ const sfObjectMap: Record<string, string> = {
   opportunities: 'Opportunity'
 };
 
-// Get all users
+
 router.get('/users', async (req, res) => {
   try {
-    const conn = new jsforce.Connection({
-      loginUrl: URL
-    });
-
+    const conn = new jsforce.Connection({ loginUrl: URL });
     await conn.login(USERNAME, PASSWORD);
-    
-    const users = await conn.query(
-      "SELECT Id, Name, Username FROM User WHERE IsActive = true ORDER BY Name"
-    );
 
-    res.json(users.records);
+    const sfUsers = await conn.query(
+      "SELECT Name, Username FROM User WHERE IsActive = true ORDER BY Name"
+    );
+    const liveUsers = sfUsers.records;
+    const liveIds = new Set(liveUsers.map(user => user.Username));
+
+    // Read salesforce.json and filter "users" based on Salesforce Ids
+    const data = readData();
+    const localUsers = data.users || [];
+
+    const matchedUsers = localUsers.filter((user: any) => liveIds.has(user.Username));
+    data.users = matchedUsers;
+
+    // Save updated data
+    writeData(data);
+
+    // Return fresh Salesforce users (or matched only if needed)
+    res.json(matchedUsers);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch users' });

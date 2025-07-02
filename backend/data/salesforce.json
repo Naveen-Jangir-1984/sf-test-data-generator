@@ -6,15 +6,7 @@
       "Password": "NKJ30101984"
     }
   ],
-  "leads": [
-    {
-      "Id": "00QdN000008Iq6oUAC",
-      "LastName": "Default LastName",
-      "Company": "Default Company",
-      "Status": "Open - Not Contacted",
-      "OwnerId": "005dN000006tLbRQAU"
-    }
-  ],
+  "leads": [],
   "accounts": [],
   "opportunities": []
 }

@@ -33,6 +33,7 @@ const Generator: React.FC = () => {
   const [user, setUser] = useState<string>('');
   const [users, setUsers] = useState<{ Id: string; Name: string }[]>([]);
   const [formFields, setFormFields] = useState<{ key: string; value: string }[]>([]);
+  const [searchText, setSearchText] = useState('');
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState<{ [key: string]: string }>({});
@@ -248,7 +249,7 @@ const Generator: React.FC = () => {
 
         <div className='actions'>
           <button onClick={handleAddField}>+ Field</button>
-          <button onClick={handleAddObject}>Submit</button>
+          <button onClick={handleAddObject} disabled={user === ''}>Submit</button>
         </div>
       </div>
 
@@ -256,7 +257,19 @@ const Generator: React.FC = () => {
         <h2>{`${type.charAt(0).toUpperCase()}${type.substring(1, type.length)}`}</h2>
         {loading ? <div>{`Fetching ${type}...`}</div> : data.length ?
         <div className='cards'>
-          {data.map((item) => (
+          <input
+            type="text"
+            placeholder={`Search ${type}...`}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ marginBottom: '10px', padding: '5px', width: '100%' }}
+          />
+          {data.filter(item =>
+            Object.values(item).some(val =>
+              String(val).toLowerCase().includes(searchText.toLowerCase())
+            )
+          )
+          .map((item) => (
             <div key={item.Id} className='card'>
               <>
                 {editingId === item.Id

@@ -47,6 +47,7 @@ const Cards: React.FC<CardsProps> = ({
         )
       )
       .map((item) => <Card
+        key={item.Id}
         item={item}
         users={users}
         editingId={editingId}

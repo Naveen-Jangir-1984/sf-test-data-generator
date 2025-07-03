@@ -44,23 +44,26 @@ router.get('/users', async (req, res) => {
     await conn.login(USERNAME, PASSWORD);
 
     const sfUsers = await conn.query(
-      "SELECT Name, Username FROM User WHERE IsActive = true ORDER BY Name"
+      "SELECT Id, Name, Username FROM User WHERE IsActive = true ORDER BY Name"
     );
     const liveUsers = sfUsers.records;
-    const liveIds = new Set(liveUsers.map(user => user.Username));
 
-    // Read salesforce.json and filter "users" based on Salesforce Ids
+    // Read salesforce.json and filter "users" based on Salesforce Names
     const data = readData();
-    const localUsers = data.users || [];
+    const localUsers = new Set((data.users || []).map((user: any) => user.Username));
 
-    const matchedUsers = localUsers.filter((user: any) => liveIds.has(user.Username));
-    data.users = matchedUsers;
+    const matchedUsers = liveUsers.filter((user: any) => localUsers.has(user.Username));
+    const filteredUsers = matchedUsers.map(user => {
+      const { attributes, ...rest } = user;
+      return rest;
+    });
+    data.users = filteredUsers;
 
     // Save updated data
     writeData(data);
 
     // Return fresh Salesforce users (or matched only if needed)
-    res.json(matchedUsers);
+    res.json(filteredUsers);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch users' });

@@ -52,7 +52,7 @@ const Inputs: React.FC<InputsProps> = ({
             field.key === 'OwnerId' ?
             <select value={user} onChange={(e) => setUser(e.target.value)}>
               <option value=''>-- Owner --</option>
-              { users.map(u => <option key={u.Id} value={u.Id}>{u.Name}</option>) }
+              { users.map(usr => <option key={usr.Id} value={usr.Id}>{usr.Name}</option>) }
             </select> : 
             <input
               placeholder="Field value"

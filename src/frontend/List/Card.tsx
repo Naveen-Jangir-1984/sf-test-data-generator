@@ -36,7 +36,7 @@ const Card: React.FC<CardProps> = ({
     handleDeleteObject
   }) => {
   return (
-    <div key={item.Id} className='card'>
+    <div className='card'>
       <>
         {editingId === item.Id
           ? Object.entries(editFields).map(([key, value]) => (
